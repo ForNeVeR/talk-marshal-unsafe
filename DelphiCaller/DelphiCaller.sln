@@ -1,16 +1,31 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.27703.2035
+MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DelphiCaller", "DelphiCaller\DelphiCaller.csproj", "{EFBC44B2-7FA0-4D3F-9268-3E56A3C1A773}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DelphiCallerLib", "DelphiCallerLib\DelphiCallerLib.vcxproj", "{F3A7F9AA-A8AA-45B0-954B-85EEF0BF94D7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
-		Debug|Any CPU = Debug|Any CPU
-		Release|Any CPU = Release|Any CPU
+		Debug|x86 = Debug|x86
+		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{EFBC44B2-7FA0-4D3F-9268-3E56A3C1A773}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{EFBC44B2-7FA0-4D3F-9268-3E56A3C1A773}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{EFBC44B2-7FA0-4D3F-9268-3E56A3C1A773}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{EFBC44B2-7FA0-4D3F-9268-3E56A3C1A773}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EFBC44B2-7FA0-4D3F-9268-3E56A3C1A773}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{EFBC44B2-7FA0-4D3F-9268-3E56A3C1A773}.Debug|x86.Build.0 = Debug|Any CPU
+		{EFBC44B2-7FA0-4D3F-9268-3E56A3C1A773}.Release|x86.ActiveCfg = Release|Any CPU
+		{EFBC44B2-7FA0-4D3F-9268-3E56A3C1A773}.Release|x86.Build.0 = Release|Any CPU
+		{F3A7F9AA-A8AA-45B0-954B-85EEF0BF94D7}.Debug|x86.ActiveCfg = Debug|Win32
+		{F3A7F9AA-A8AA-45B0-954B-85EEF0BF94D7}.Debug|x86.Build.0 = Debug|Win32
+		{F3A7F9AA-A8AA-45B0-954B-85EEF0BF94D7}.Release|x86.ActiveCfg = Release|Win32
+		{F3A7F9AA-A8AA-45B0-954B-85EEF0BF94D7}.Release|x86.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {7EBA6528-6015-40CD-9554-7FC9796C4836}
 	EndGlobalSection
 EndGlobal

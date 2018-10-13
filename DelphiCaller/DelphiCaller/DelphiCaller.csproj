@@ -46,6 +46,12 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DelphiCallerLib\DelphiCallerLib.vcxproj">
+      <Project>{f3a7f9aa-a8aa-45b0-954b-85eef0bf94d7}</Project>
+      <Name>DelphiCallerLib</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
          Other similar extension points exist, see Microsoft.Common.targets.
