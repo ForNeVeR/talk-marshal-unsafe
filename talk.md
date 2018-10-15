@@ -18,6 +18,9 @@
 также некоторыми подводными камнями, которые обязательно оказываются на пути у
 тех, кто начинает работу с нативным кодом из .NET.
 
+В данном докладе я постараюсь говорить обо всех современных реализациях .NET: о
+.NET Framework, Mono и .NET Core.
+
 ## Способы взаимодействия управляемого и неуправляемого кода
 
 Представим, что мы пишем программу на C#, и вдруг появляется нативная
@@ -160,7 +163,9 @@ int __fastcall perform_wrapped_call() {
 среды билд-сервера.
 
 Не все знают, что со многими COM-объектами можно работать и без использования
-TLB, через `IDispatch` — например, таким образом можно работать с MS Office.
+TLB, через `IDispatch` — например, таким образом можно работать с MS Office (а
+больше половины всех случаев, когда приходилось использовать COM, на моей памяти
+относятся именно к MS Office).
 
 Поэтому в итоге в одном из случаев мне довелось поддерживать смешанное решение:
 на тех машинах, на которых установлена COM-библиотека, мы использовали строгую
@@ -195,11 +200,62 @@ instance.HelloWorld();
 не заставляет переписывать весь интеграционный слой на другом языке, а
 во-вторых, он работает на всех платформах.
 
-- `DllImport`
-- простой вариант: напрямую мапить примитивные типы, указатели отображать на
-  `IntPtr`
-  - что на самом деле делает ключевое слово `unsafe` в C#
-- сложный вариант: маршаллинг
+Работа с P/Invoke начинается, конечно, с атрибута `DllImport`. Давайте посмотрим
+на его свойства:
+
+```csharp
+public sealed class DllImportAttribute : Attribute
+{
+    public DllImportAttribute(string dllName) { /* ... */ }
+    public string EntryPoint;
+    public CharSet CharSet;
+    public bool SetLastError;
+    public bool ExactSpelling;
+    public CallingConvention CallingConvention;
+    public bool BestFitMapping;
+    public bool PreserveSig;
+    public bool ThrowOnUnmappableChar;
+}
+```
+
+- в конструктор этот атрибут принимает название библиотеки, из которой будут
+  вызываться функции: под Windows и macOS это полное имя файла, а под Linux и
+  .NET Core это только имя библиотеки без префикса и постфикса
+
+  ```csharp
+  [DllImport("tdjson.dll")] // → tdjson.dll   // Windows
+  [DllImport("tdjson")]     // → libtdjson.so // Linux, .NET Core
+  [DllImport("libtdjson.so")]  // → libtdjson.so // Linux, Mono
+  [DllImport("libtdjson.dylib")] // → libtdjson.dylib // macOS
+
+  [DllImport("__Internal")] // Mono only
+  [DllImport("somelib.dll", EntryPoint = "#123")] // by ordinal, Windows
+  ```
+
+  Помимо этого, Mono также умеет загружать символы прямо из текущего файла (для
+  чего он, конечно, должен быть скомпилирован в нативный код) — это эдакий
+  аналог динамического связывания из C++/CLI.
+- `EntryPoint` — это имя функции, которая будет вызвана из библиотеки. Если вы
+  хотите импортировать функцию по ординалу (бывает такая надобность) — можно
+  использовать имена типа `#123`.
+- `CharSet`: `Auto` / `Ansi` / `Unicode` (по умолчанию в CLI `Auto`, но в C# –
+  `Ansi`)
+- `SetLastError` — нужно выставлять для функций, после которых вызывателю
+  хочется вызвать `Marshal.GetLastWin32Error`; это нужно для случаев, когда сама
+  CLR могла бы затереть последнюю ошибку своими вызовами.
+- `ExactSpelling` нужен для того, чтобы CLR могла перестать угадывать название
+  функции (`A` или `W`-варианты для WinAPI)
+- `CallingConvention` — это нативная конвенция вызова
+- `PreserveSig` влияет на интерпретацию возвращаемых значений типа `HRESULT`:
+  если `PreserveSig = true` (по умолчанию), то `HRESULT` будет возвращён как
+  есть, а если `false` — то невалидный `HRESULT` будет выброшен как исключение.
+- `ThrowOnUnmappableChar` — нужен для случаев, когда мы пытаемся скормить
+  ANSI-функции юникод, который нормально не представляется в ANSI
+
+### Передача аргументов во внешние функции
+
+- https://docs.microsoft.com/en-us/dotnet/framework/interop/copying-and-pinning
+- как маршаллятся blittable и non-blittable
 
 ### Размещение структур в памяти
 
@@ -209,11 +265,6 @@ instance.HelloWorld();
 - blittable-типы (aka `unsafe`)
 - выравнивание
 - совет: не стесняйтесь писать тесты на layout структур, это может пригодиться
-
-### Правила Marshal'а
-
-- https://docs.microsoft.com/en-us/dotnet/framework/interop/copying-and-pinning
-- как маршаллятся blittable и non-blittable
 
 #### Строки
 
