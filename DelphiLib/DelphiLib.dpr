@@ -7,7 +7,7 @@ uses
 {$R *.res}
 
 type
- TMyCallback = function(number: Integer): Integer; register;
+ TMyCallback = function(number: Integer): Integer;
 
 function DoCall(callback: TMyCallback): Integer; cdecl;
 begin
