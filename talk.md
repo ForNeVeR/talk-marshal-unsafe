@@ -259,70 +259,457 @@ public sealed class DllImportAttribute : Attribute
 код умеет принимать данные по значению или по указателю.
 
 Для того, чтобы передать значение, мы просто передаём структуру, как мы привыкли
-в .NET. Примитивные типы, как и другие структуры, тоже передаются по значению.
+в .NET. Примитивные типы, как и другие структуры, тоже передаются по значению в
+соответствии с выбранной вами calling convention.
 
 - примитивные типы (`int`, `long`, `double` etc.)
 - другие value types (структуры, enums)
 
 А вот если мы хотим что-то передать по указателю, то ситуация становится
-интереснее. Наши ссылочные типы передаются в нативный код по указателю, а кроме
-них // TODO
+интереснее. По указателю в нативный код передаются:
 
 - ссылочные типы (классы, делегаты)
 - unsafe-указатели
-- что угодно через `ref` или `out`
+
+  ```csharp
+  int[] x = new int[10];
+  fixed (int* ptr = x) {
+      Native.Call(ptr);
+  }
+  ```
+- что угодно через `ref` или `out` (следует отметить, что с нативной стороны
+  `ref` ничем не отличается от `out`)
 - `IntPtr`
 
-- https://docs.microsoft.com/en-us/dotnet/framework/interop/copying-and-pinning
-- как маршаллятся blittable и non-blittable
+При этом структуры, которые передаются по указателю, на время выполнения
+нативного вызова _пинятся_ в памяти — то есть GC не будет выполнять перемещение
+таких объектов. Пининг, однако, не бесплатен, и стоит какой-то
+производительности.
+
+Все типы разделяются на категории blittable и non-blittable. При передаче
+blittable-типа в нативный код по указателю, туда передаётся просто указатель на
+нашу управляемую память — копирования при этом не происходит. Для non-blittable
+типов может потребоваться их преобразование и копирование, поэтому вызовы с
+такими типами всегда обходятся дороже.
 
 ### Размещение структур в памяти
 
-- разные варианты `StructLayoutKind`
-- немного про `Pack`
-- fixed-массивы
-- blittable-типы (aka `unsafe`)
-- выравнивание
-- совет: не стесняйтесь писать тесты на layout структур, это может пригодиться
+Теперь поговорим про то, как наши управляемые объекты раскладываются в памяти.
+Обычно, когда вы делаете интероп с нативным кодом, у вас есть какие-то
+заголовочные файлы или просто информация о том, как в памяти размещена нужная
+структура. .NET позволяет управлять расположением полей в структуре, для этого
+существует специальный атрибут `StructLayout`. Этот атрибут позволяет делать
+всякие интересные вещи с нашими типами, что изредка может пригодиться и в
+обычном коде, а не только в интеропе.
+
+```csharp
+[StructLayout(LayoutKind.Sequential)]
+public class DBVariant {
+  public byte type;
+  public Variant Value;
+
+  [StructLayout(LayoutKind.Explicit)]
+  public struct Variant {
+    [FieldOffset(0)] public byte bVal;
+    [FieldOffset(0)] public byte cVal;
+    [FieldOffset(0)] public ushort wVal;
+    [FieldOffset(0)] public short sVal;
+    [FieldOffset(0)] public uint dVal;
+    [FieldOffset(0)] public int lVal;
+    [FieldOffset(0)] public IntPtr pszVal;
+    [FieldOffset(0)] public ushort cchVal;
+    [FieldOffset(0)] public ByteArray ByteArrayValue;
+  }
+}
+```
+
+Первым аргументом у этого атрибута идёт `LayoutKind`, который бывает `Auto`,
+`Sequential` и `Explicit`. `Sequential` располагает поля в структуре по порядку
+(добавляя корректные паддинги), а `Explicit` позволяет вам самостоятельно
+указать смещение для каждого поля.
+
+Вот эта последняя особенность, во-первых, бывает очень полезна, когда у вас по
+какой-то причине жёстко зашиты смещения (у меня такое было, когда мне спустили
+сверху спецификацию на китайскую железку, которая умела только в свой бинарный
+протокол — а у китайцев очень _интересные_ представления о том, как поля нужно
+размещать в памяти). А во-вторых, она позволяет нам в .NET сделать настоящий
+сишный union — то есть такую структуру, в которой на одном и том же месте могут
+находиться объекты различного типа и конфигурации. У нас тут как раз пример
+такого, который мне довелось написать, когда я делал managed-плагины для
+мессенжера Miranda IM.
+
+Второе важное свойство — это свойство `Pack`.
+
+```csharp
+[StructLayout(LayoutKind.Sequential, Pack = 8)] // 16 bytes
+public class DBVariant1 { public byte type; public IntPtr Pointer; }
+
+[StructLayout(LayoutKind.Sequential, Pack = 1)] // 9 bytes
+public class DBVariant2 { public byte type; public IntPtr Pointer; }
+```
+
+Если мы говорим про memory layout, трудно не упомянуть ещё одну малоизвестную
+возможность: fixed-массивы. Это такие массивы, которые выделяются не как обычные
+— по ссылке и складываются в кучу, а такие, которые живут прямо в теле объекта,
+в котором они объявлены. Для того, чтобы это работало, структуру нужно пометить
+как `unsafe`, а количество элементов в массиве должно быть известно во время
+компиляции. Стоит отметить, что эта возможность недаром помечается как `unsafe`:
+за контроль границ массива вы сами несёте ответственность.
+
+```c
+// C
+struct X {
+  int Array[30];
+};
+```
+
+```csharp
+unsafe struct X {
+  fixed int Array[30];
+}
+```
+
+В завершение этой секции я дам совет: если у вас строгие требования к memory
+layout — не стесняйтесь на это написать тесты. Сделать это можно, например, вот
+так:
+
+```csharp
+struct Foo { public int x, y; }
+Foo f = new Foo();
+int offset1 = (byte*) &f - (byte*) &f.x;
+Assert.Equal(0, offset1);
+```
 
 #### Строки
 
-- как маршаллить строки и отстрелить себе всё ниже пояса
-- виды строк (`string` vs `StringBuilder` в контексте маршаллинга)
-- https://fornever.me/ru/posts/2017-09-20-clr-string-marshalling.html
-- сравнение производительности при маршаллинге ANSI и Unicode _(юникод должен
-  зарулить, потому что будет маршаллиться по указателю)_
+Теперь поговорим про строки. Все любят строки, правда? :)
+
+Для начала обсудим, как нативный код работает со строками. Есть множество
+вариантов: COM-строки, содержащие длину, однобайтовые строки, юникодовые (под
+«юникодом» Microsoft традиционно понимает UTF-16).
+
+Для этого есть специальный атрибут `MarshalAs`, и у него три ходовых значения
+для строк:
+
+```csharp
+extern void Foo([MarshalAs(UnmanagedType.BStr)] string arg);
+extern void Foo([MarshalAs(UnmanagedType.LPStr)] string arg);
+extern void Foo([MarshalAs(UnmanagedType.LPWStr)] string arg);
+```
+
+Есть ещё варианты для выбора кодировки в зависимости от платформы (а-ля
+`LPTStr`), но они в современном мире не нужны, т.к. были нужны только для
+неюникодовых версий Windows.
+
+Стоит помнить, что наши строки в .NET — иммутабельные, так что стоит очень
+аккуратно относиться к использованию API, которые могут эти строки помутировать.
+Для примера рассмотрим функцию, которая реверсит переданную строку:
+
+```cpp
+#include <cwchar>
+#include <xutility>
+
+extern "C" __declspec(dllexport) void MutateString(wchar_t *string) {
+  std::reverse(string, std::wcschr(string, L'\0'));
+}
+```
+
+И напишем простой код на C#, который использует эту внешнюю функцию
+
+```csharp
+[DllImport("Project1.dll", CharSet = CharSet.Unicode)]
+private static extern void MutateString(string foo);
+
+static void Main() {
+  var myString = "Hello World 1";
+  MutateString(myString);
+
+  Console.WriteLine(myString.ToString()); // => 1 dlroW olleH
+  Console.WriteLine("Hello World 1");     // => 1 dlroW olleH
+}
+```
+
+Как видим, нативный код нам не просто помутировал строку, а поменял _строковую
+константу_, и теперь везде в программе она отображается поломанной. Этот код
+плохой, и так делать не следует!
+
+В таком случае стоит использовать `StringBuilder`: он может работать с теми же
+API, с которыми работают обычные строки, но в нём можно спокойно мутировать
+данные, не боясь повредить никакие иммутабельные данные.
+
+Вот правильный вариант такого же кода:
+
+```csharp
+[DllImport("Project1.dll", CharSet = CharSet.Unicode)]
+private static extern void MutateString(StringBuilder foo);
+
+static void Main() {
+  var myString = new StringBuilder("Hello World 1");
+  MutateString(myString);
+
+  Console.WriteLine(myString.ToString()); // => 1 dlroW olleH
+  Console.WriteLine("Hello World 1");     // => Hello World 1
+}
+```
+
+Ну и неожиданный поворот: по непонятным лично для меня причинам, в структурах,
+которые мы передаём в нативный код, всё работает совсем иначе: отчего-то в их
+составе запрещено использовать `StringBuilder`, но `string` там будет работать
+нормально:
+
+```cpp
+#include <cwchar>
+#include <xutility>
+
+struct S {
+  wchar_t *field;
+};
+extern "C" __declspec(dllexport) void MutateStruct(S *s) {
+  MutateString(s->field);
+}
+```
+
+```csharp
+[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+struct S {
+    public string field;
+}
+
+[DllImport("Project1.dll", CharSet = CharSet.Unicode)]
+private static extern void MutateStruct(ref S foo);
+
+static void Main()
+{
+  S s = new S();
+  s.field = "Hello World 2";
+  MutateStruct(ref s);
+
+  Console.WriteLine(s.field);         // => 2 dlroW olleH
+  Console.WriteLine("Hello World 2"); // => Hello World 2
+}
+```
+
+Вооружившись полученными знаниями, давайте попробуем побенчмаркать. Итак, мы
+знаем, что строки по возможности передаются по указателю и без копирования.
+Давайте посмотрим, насколько велики накладные расходы на копирование.
+
+Напишем максимально простую DLL, которая будет принимать юникодовые и
+ANSI-строки и просто игнорировать их.
+
+```cpp
+extern "C" __declspec(dllexport) void PassAnsiString(char *) {}
+extern "C" __declspec(dllexport) void PassUnicodeString(wchar_t *) {}
+```
+
+И напишем небольшой бенчмарк, который будет использовать эти функции:
+
+```csharp
+[DllImport("StringConsumer.dll", CharSet = CharSet.Ansi)]
+private static extern void PassAnsiString(string str);
+
+[DllImport("StringConsumer.dll", CharSet = CharSet.Unicode)]
+private static extern void PassUnicodeString(string str);
+
+[Params(10, 100, 1000)]
+public int N;
+
+private string stringToPass;
+
+[GlobalSetup]
+public void Setup() => stringToPass = new string('x', N);
+
+[Benchmark]
+public void PassAnsiString() => PassAnsiString(stringToPass);
+
+[Benchmark]
+public void PassUnicodeString() => PassUnicodeString(stringToPass);
+```
+
+Результаты бенчмарка представлены ниже. Как видно, затраты на копирование для
+строк длиной больше 10 символов уже становятся заметными на фоне простой
+передачи указателя.
+
+```
+            Method |    N |        Mean |     Error |    StdDev |
+------------------ |----- |------------:|----------:|----------:|
+    PassAnsiString |   10 |    89.89 ns | 1.5052 ns | 1.2569 ns |
+ PassUnicodeString |   10 |    34.68 ns | 0.4818 ns | 0.4024 ns |
+    PassAnsiString |  100 |   167.77 ns | 3.4897 ns | 3.0935 ns |
+ PassUnicodeString |  100 |    36.37 ns | 0.7480 ns | 0.6631 ns |
+    PassAnsiString | 1000 | 1,032.29 ns | 7.2073 ns | 6.0185 ns |
+ PassUnicodeString | 1000 |    36.05 ns | 0.7446 ns | 0.9940 ns |
+```
 
 ### SafeHandle
 
-### ICustomMarshaler: маршаллим что попало как попало
+Говоря о нативных API, неправильно будет не упомянуть `SafeHandle`. Это такая
+штука, которая позволяет улучшить работу с системными хендлами. При работе с
+хендлами часто приходится писать что-то в этом роде:
+
+```csharp
+// extern IntPtr CreateFile(…);
+// extern void CloseHandle(IntPtr _);
+IntPtr someHandle = CreateFile(…);
+if (someHandle == IntPtr.Zero) throw new Exception("Invalid handle value");
+try {
+  // …
+} finally {
+  CloseHandle(someHandle);
+}
+```
+
+Но специальный класс `SafeHandle` (и его вариации типа
+`SafeHandleZeroOrMinusOneIsInvalid`), от которого вы можете наследоваться,
+скрывает за собой весь этот бойлерплейт:
+
+```csharp
+class MyHandle : SafeHandleZeroOrMinusOneIsInvalid
+{
+  public MyHandle() : base(true) { }
+  protected override bool ReleaseHandle() => CloseHandle(this.handle);
+}
+```
+
+Если вы работаете с WinAPI-методами, которые возвращают хендлы, хорошей идеей
+будет завернуть их в `SafeHandle`.
+
+### ICustomMarshaler
+
+Для случаев, когда стандартных возможностей маршаллера вам недостаточно, есть
+специальный интерфейс `ICustomMarshaller`. Признаюсь, применения этого механизма
+я в продакшене никогда не видел, но если потребуется — он есть.
+
+```csharp
+public interface ICustomMarshaler {
+  object MarshalNativeToManaged(IntPtr pNativeData);
+  IntPtr MarshalManagedToNative(object ManagedObj);
+  void CleanUpNativeData(IntPtr pNativeData);
+  void CleanUpManagedData(object ManagedObj);
+  int GetNativeDataSize();
+}
+```
+
+Это интерфейс, который содержит методы, которые будут вызываться рантаймом для
+очистки и преобразования нативных и управляемых объектов. Что интересно — это
+дополнительное требование к реализации: вы должны реализовать статический метод
+`GetInstance` с определённой сигнатурой.
+
+```csharp
+public class MyMarshaller : ICustomMarshaller {
+  public static ICustomMarshaler GetInstance(string cookie) => new MyMarshaller();
+  // …
+}
+
+[MarshalAs(MarshalType = "Foo.Bar.MyMarshaller", MarshalCookie = "Test")]
+```
+
+Во всём коде corefx я нашёл только одну реализацию этого интерфейса, так что не
+будем слишком подробно на нём останавливаться.
 
 ### Пара слов про вызов делегатов из нативного кода
 
-- как маршаллить
-- как работает под капотом
-- чего опасаться (GC, GC.KeepAlive)
+Обсудим немного маршаллинг делегатов. Известно, что наши делегаты — это примерно
+то же самое, что указатели на функции. И наши делегаты действительно можно
+преобразовать к указателям на нативные функции!
+
+Здесь есть одна проблемка: делегаты могут указывать много куда — например, на
+инстансный метод. В нативном коде эта проблема иногда встречается: например,
+программист на C++ не может понять, как ему указатель на метод передать
+куда-нибудь, где у него спрашивают указатель на функцию без аргументов. И
+решения в этом случае нет, потому что функция должна же как-то принимать
+контекст.
+
+У нас в .NET этой проблемы не будет: умный рантайм умеет скомпилировать функции
+на лету, зашив туда все нужные указатели на контекст и пр.
+
+Вот пример того, как можно вызвать нативную функцию, передав ей делегат:
+
+```csharp
+[UnmanagedFunctionPointer(CallingConvention::FastCall)]
+delegate void MarshalableDelegate(int param);
+
+[DllImport(…)]
+static extern void NativeFunc(MarshalableDelegate x);
+
+var myDelegate = new Foo(myObject.MyMethod);
+NativeFunc(myDelegate);
+```
+
+Здесь есть очень интересный подводный камень: если этот указатель в нативном
+коде где-то сохраняется и вызывается позже, это может вызвать проблемы. Дело в
+том, что GC может собрать делегат сразу после вызова.
+
+Поэтому вам нужно либо где-то сохранять ссылку на этот делегат, либо вызывать
+`GC.KeepAlive`. Шаблон может быть примерно такой:
+
+```csharp
+var myDelegate = new Foo(myObject.MyMethod);
+var context = NativeFuncBegin(myDelegate);
+// ...
+var result = NativeFuncEnd(context);
+GC.KeepAlive(myDelegate);
+```
 
 ## Немножко IL-кода
 
-- Unmanaged export: https://github.com/ForNeVeR/SpySharp/blob/54c4d2c51a799d7e151a9db332dbe00a8e5bdb2f/SpySharp.Hooker/Hooker.il
-- vararg-функции: https://github.com/ForNeVeR/expert-cil-samples/blob/c80436e8dcc9763922c416625765de3b57b5296a/Simple.il#L52
+Напоследок покажу пару интересных фич, которые нельзя реализовать в C#, но в
+самой платформе они доступны.
 
-## Распространение нативного кода для .NET Core через NuGet
+Во-первых, мало кто знает, но из DLL на .NET можно экспортировать функции так,
+что нативные вызыватели смогут подгрузить вашу библиотеку и вызвать эти функции
+стандартным способом.
 
-- layout пакетов с нативным кодом
-- `dotnet publish`
+В CIL это выглядит примерно так:
+
+```
+.assembly extern mscorlib { auto }
+.assembly extern System { auto }
+.assembly SpySharp.Hooks {}
+.module SpySharp.Hooks.dll
+
+.method assembly static native int modopt ([mscorlib]System.Runtime.CompilerServices.CallConvStdcall) HookProc(
+  int32 nCode,
+  native int lParam,
+  native int wParam) {
+  .vtentry 1 : 1
+  .export [1] as HookProc
+
+  ldc.i4.0
+  ret
+}
+```
+
+У меня есть один проект, в котором я решил написать часть кода на CIL специально
+для того, чтобы использовать эту прекрасную фичу. Ну и, конечно, вы можете
+постпроцессить свою сборку после компиляции, чтобы добавить нужные атрибуты и
+метаданные и экспортировать функции.
+
+Вторая занимательная штука — это вызов vararg-функций из .NET. Это сишные
+функции типа `printf`, и на C# (насколько я знаю) сигнатуры таких функций для
+`DllImport` описать нельзя. А на CIL — можно:
+
+```
+.method public static pinvokeimpl("msvcrt.dll" ansi cdecl)
+vararg int32 printf(string) cil managed preservesig {}
+
+// in method:
+.locals init(int32 i, void* pb)
+
+// printf(“%2.2d : %d\n”, i, *(int*)pb);
+ldstr "%2.2d : %d\n"
+ldloc.0
+ldloc.1
+ldind.i4
+call vararg int32 printf(string, ..., int32, int32)
+```
 
 ## Выводы
 
-- не нужно бояться нативного кода
-- по возможности стоит описывать код в безопасном стиле, не пользуясь
-  указателями, если можете их избежать — запутаться в таком коде немного сложнее
-- `StructLayout` — наш друг
-- со строками следует обращаться крайне осторожно и внимательно следить за
-  mutable/ref строками и буферами
-- не забывайте сохранять ссылки на делегаты, которые должны жить в нативном
-  коде, или `GC.KeepAlive`
-- всегда обязательно писать подробные тесты на любой код с интеропом, потому что
-  этот код очень хрупкий, а диагностировать ошибки в нём очень сложно
-- иногда тесты на memory layout — тоже неглупая затея!
+1. Не нужно бояться нативного кода.
+2. По возможности стоит описывать код в безопасном стиле, не пользуясь
+   указателями, если можете их избежать.
+3. `StructLayout` — наш друг.
+4. Со строками следует обращаться крайне осторожно.
+5. Сохраняйте ссылки на делегаты.
+6. Тесты.
+7. Тесты на memory layout тоже иногда полезны.

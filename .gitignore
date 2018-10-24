@@ -1,0 +1,10 @@
+.idea/
+.vs/
+
+bin/
+obj/
+x64/
+
+BenchmarkDotNet.Artifacts/
+
+*.user
