@@ -240,6 +240,7 @@ public sealed class DllImportAttribute : Attribute
   использовать имена типа `#123`.
 - `CharSet`: `Auto` / `Ansi` / `Unicode` (по умолчанию в CLI `Auto`, но в C# –
   `Ansi`)
+- `BestFitMapping` контролирует подстановку символов для ANSI-кодировки
 - `SetLastError` — нужно выставлять для функций, после которых вызывателю
   хочется вызвать `Marshal.GetLastWin32Error`; это нужно для случаев, когда сама
   CLR могла бы затереть последнюю ошибку своими вызовами.
