@@ -15,6 +15,12 @@
                 right: initial;
                 font-size: 6vh;
             }
+            .reveal pre code.hljs {
+                max-height: 500px;
+            }
+            .reveal blockquote p {
+                text-align: left;
+            }
         </style>
     </head>
     <body>
@@ -71,19 +77,52 @@
                     <script type="text/template">
                         ## C++/CLI [1]
 
-                        Плюсы:
+                        ```cpp
+                        #include <Windows.h>
 
-                        - простое потребление заголовочных файлов и API на C
-                          и C++
-                        - возможность использования управляемого и
-                          неуправляемого кода в одном модуле
-                        - ассемблерные вставки на x86
-
-                        Минусы:
-
-                        - не кроссплатформенно
+                        void function_called_from_managed_code() {
+                            HANDLE mutex = CreateMutex(nullptr, false, nullptr);
+                        }
+                        ```
                     </script>
                 </section>
+                <section data-markdown>
+                    <script type="text/template">
+                        ## C++/CLI [2]
+
+                        ```cpp
+                        #pragma managed
+                        ref class ManagedClass {
+                            public:
+                                property int Foo {
+                                    int get() { return 0; }
+                                    void set(int value) {  }
+                                }
+                        };
+
+                        #pragma unmanaged
+                        int __fastcall perform_wrapped_call() {
+                            int argument;
+                            __asm { mov argument, eax }
+                            return argument;
+                        }
+                        ```
+                    </script>
+                </section>
+                <section data-markdown>
+                    <script type="text/template">
+                        ## C++/CLI [3]
+
+                        https://github.com/dotnet/coreclr/issues/659
+
+                        > **2015-04-10**: There is no plan to support C++/CLI
+                        > with .NET Core.
+
+                        > **2018-09-15**: You can track progress on Windows-only
+                        > Managed C++ support in #18013.
+                    </script>
+                </section>
+                <!-- TODO[F]: Section title: C[+][+] -->
                 <section data-markdown>
                     <script type="text/template">
                         ## Байки из склепа [0]
@@ -625,6 +664,7 @@
                         console.log(document.getElementsByTagName('code'));
                         hljs.initHighlightingOnLoad(); } },
                 ],
+                center: false,
                 showNotes: isPrintMode,
                 slideNumber: true
             });
