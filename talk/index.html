@@ -10,6 +10,11 @@
                 box-shadow: none !important;
                 max-height: 500px !important;
             }
+            body > .reveal > .slide-number {
+                left: 8px;
+                right: initial;
+                font-size: 6vh;
+            }
         </style>
     </head>
     <body>
@@ -20,8 +25,14 @@
                         ## На стыке управляемого и неуправляемого миров
                         ---
                         <footer style="text-align: right;">
-                            by: <img src="images/avatar.png"
-                                     style="width: 1em; height: 1em; margin: 0; border: 0; box-shadow: none; vertical-align: sub;" /><br/>
+                            by: Friedrich von Never
+                            <img src="images/avatar.png"
+                                 style="width: 1em;
+                                        height: 1em;
+                                        margin: 0;
+                                        border: 0;
+                                        box-shadow: none;
+                                        vertical-align: sub;" /><br/>
                             https://github.com/ForNeVeR<br/>
                             https://fornever.me/<br/>
                             <img src="images/jetbrains.png"
@@ -614,7 +625,8 @@
                         console.log(document.getElementsByTagName('code'));
                         hljs.initHighlightingOnLoad(); } },
                 ],
-                showNotes: isPrintMode
+                showNotes: isPrintMode,
+                slideNumber: true
             });
         </script>
     </body>
