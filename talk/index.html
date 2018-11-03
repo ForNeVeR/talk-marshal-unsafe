@@ -21,6 +21,13 @@
             .reveal blockquote p {
                 text-align: left;
             }
+            .reveal h2 {
+                text-transform: initial;
+            }
+            .title-section h2 {
+                font-size: 300%;
+                margin-bottom: 100px;
+            }
         </style>
     </head>
     <body>
@@ -48,7 +55,7 @@
                         </footer>
                     </script>
                 </section>
-                <section data-markdown>
+                <section data-markdown class="tralala">
                     <script type="text/template">
                         ## Способы взаимодействия управляемого и неуправляемого кода
 
@@ -57,9 +64,14 @@
                         - P/Invoke
                     </script>
                 </section>
+                <section data-markdown data-background="#11ff22" class="title-section center">
+                    <script type="text/template">
+                        ## C++/CLI <img src="images/crusader.svg" style="height: 30vh; background: none; vertical-align: bottom;" />
+                    </script>
+                </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## C++/CLI [0]
+                        ## Что такое C++/CLI
 
                         ```cpp
                         System::String ^foo = gcnew System::String("foobaz");
@@ -75,7 +87,7 @@
                 </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## C++/CLI [1]
+                        ## Нативные #include
 
                         ```cpp
                         #include <Windows.h>
@@ -88,7 +100,7 @@
                 </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## C++/CLI [2]
+                        ## #pragma unmanaged
 
                         ```cpp
                         #pragma managed
@@ -111,7 +123,7 @@
                 </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## C++/CLI [3]
+                        ## .NET Core
 
                         https://github.com/dotnet/coreclr/issues/659
 
@@ -122,10 +134,14 @@
                         > Managed C++ support in #18013.
                     </script>
                 </section>
-                <!-- TODO[F]: Section title: C[+][+] -->
+                <section data-markdown data-background="#551122" class="title-section center">
+                    <script type="text/template">
+                        ## Байки из склепа<br/> 💀🎃
+                    </script>
+                </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## Байки из склепа [0]
+                        ## Delphi
 
                         ```delphi
                         type
@@ -140,7 +156,7 @@
                 </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## Байки из склепа [1]
+                        ## Managed
 
                         ```cpp
                         // Func<int, int> ^callback;
@@ -160,7 +176,7 @@
                 </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## Байки из склепа [2]
+                        ## Unmanaged
 
                         ```cpp
                         Callback *CallbackInstance;
@@ -178,9 +194,14 @@
                         ```
                     </script>
                 </section>
+                <section data-markdown data-background="#000000" class="title-section center">
+                    <script type="text/template">
+                        ## Component Object Model
+                    </script>
+                </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## COM [0]
+                        ## COM 101
 
                         ```csharp
                         IComService instance = new IComService();
@@ -190,7 +211,7 @@
                 </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## COM [1]
+                        ## dymanic & #if
 
                         ```csharp
                         #if COM_LIBRARY_INSTALLED
@@ -205,9 +226,24 @@
                         ```
                     </script>
                 </section>
+                <section data-markdown data-background="#119900" class="title-section center">
+                    <script type="text/template">
+                        ## P/Invoke<br/><span style="font-size: 50%;">╰(•̀ 3 •́)━☆ﾟ.*･｡ﾟ</span>
+                    </script>
+                </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## P/Invoke [0]
+                        ## DllImportAttribute
+
+                        ```csharp
+                        [DllImport("StringConsumer.dll", CharSet = CharSet.Unicode)]
+                        private static extern void PassUnicodeString(string str);
+                        ```
+                    </script>
+                </section>
+                <section data-markdown>
+                    <script type="text/template">
+                        ## DllImportAttribute :: Details
 
                         ```csharp
                         public sealed class DllImportAttribute : Attribute
@@ -227,7 +263,7 @@
                 </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## P/Invoke [1]
+                        ## DllImportAttribute :: dllName
 
                         ```csharp
                         [DllImport("tdjson.dll")] // → tdjson.dll      // Windows
@@ -236,21 +272,20 @@
                         [DllImport("libtdjson.dylib")] // → libtdjson.dylib // macOS
 
                         [DllImport("__Internal")] // Mono only
-                        [DllImport("somelib.dll", EntryPoint = "#123")] // by ordinal, Windows
+                        [DllImport("somelib.dll", EntryPoint = "#123")] // by ordinal, Win
                         ```
                     </script>
                 </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## P/Invoke [2]
+                        ## Передача значений в натив
 
-                        ```csharp
-                        [DllImport("StringConsumer.dll", CharSet = CharSet.Unicode)]
-                        private static extern void PassUnicodeString(string str);
-                        ```
+                        Values:
 
                         - примитивные типы (`int`, `long`, `double` etc.)
                         - другие value types (структуры, enums)
+
+                        Pointers:
 
                         - ссылочные типы (классы, делегаты)
                         - unsafe-указатели
@@ -258,7 +293,7 @@
                 </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## P/Invoke [3]
+                        ## Указатели в C#&nbsp;
 
                         ```csharp
                         int[] x = new int[10];
@@ -266,13 +301,11 @@
                             Native.Call(ptr);
                         }
                         ```
-
-                        - blittable / nonblittable
                     </script>
                 </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## P/Invoke [4]
+                        ## StructLayout :: Unions
 
                         ```csharp
                         [StructLayout(LayoutKind.Sequential)]
@@ -295,7 +328,7 @@
                 </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## P/Invoke [5]
+                        ## StructLayout :: Pack
 
                         ```csharp
                         [StructLayout(LayoutKind.Sequential, Pack = 8)] // 16 bytes
@@ -308,7 +341,7 @@
                 </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## P/Invoke [6]
+                        ## fixed arrays
 
                         ```c
                         // C
@@ -326,7 +359,7 @@
                 </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## P/Invoke [7]
+                        ## Тесты на memory layout
 
                         ```csharp
                         struct Foo { public int x, y; }
@@ -336,9 +369,14 @@
                         ```
                     </script>
                 </section>
+                <section data-markdown data-background="#009922" class="title-section center">
+                    <script type="text/template">
+                        ## "Строки"
+                    </script>
+                </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## Строки [0]
+                        ## MarshalAsAttribute
 
                         ```csharp
                         extern void Foo([MarshalAs(UnmanagedType.BStr)] string arg);
@@ -349,7 +387,7 @@
                 </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## Строки [1]
+                        ## MutateString (native)
 
                         ```cpp
                         #include <cwchar>
@@ -363,7 +401,7 @@
                 </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## Строки [2]
+                        ## MutateString (managed)
 
                         ```csharp
                         [DllImport("Project1.dll", CharSet = CharSet.Unicode)]
@@ -381,7 +419,7 @@
                 </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## Строки [2]
+                        ## MutateString (managed) 😱
 
                         ```csharp
                         [DllImport("Project1.dll", CharSet = CharSet.Unicode)]
@@ -399,7 +437,7 @@
                 </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## Строки [3]
+                        ## MutateString (StringBuilder)
 
                         ```csharp
                         [DllImport("Project1.dll", CharSet = CharSet.Unicode)]
@@ -417,12 +455,9 @@
                 </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## Строки [4]
+                        ## MutateStruct (native)
 
                         ```cpp
-                        #include <cwchar>
-                        #include <xutility>
-
                         struct S {
                           wchar_t *field;
                         };
@@ -434,7 +469,7 @@
                 </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## Строки [5]
+                        ## MutateStruct (managed)
 
                         ```csharp
                         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
@@ -456,17 +491,17 @@
                 </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## Строки [6]
+                        ## Сравнение быстродействия
 
                         ```cpp
-                        extern "C" __declspec(dllexport) void PassAnsiString(char *) {}
-                        extern "C" __declspec(dllexport) void PassUnicodeString(wchar_t *) {}
+                        void PassAnsiString(char *) {}
+                        void PassUnicodeString(wchar_t *) {}
                         ```
                     </script>
                 </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## Строки [7]
+                        ## Сравнение быстродействия: бенчмарк
 
                         ```csharp
                         [Params(10, 100, 1000)]
@@ -487,7 +522,7 @@
                 </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## Строки [7]
+                        ## Сравнение быстродействия: результаты
 
                         ```
                                     Method |    N |        Mean |     Error |    StdDev |
@@ -502,6 +537,11 @@
 
                     </script>
                 </section>
+                <section data-markdown data-background="#002288" class="title-section center">
+                    <script type="text/template">
+                        ## 📜 Разное
+                    </script>
+                </section>
                 <section data-markdown>
                     <script type="text/template">
                         ## SafeHandle
@@ -512,8 +552,7 @@
                         IntPtr someHandle = CreateFile(…);
                         if (someHandle == IntPtr.Zero)
                             throw new Exception("Invalid handle value");
-                        try {
-                          // …
+                        try { // …
                         } finally {
                           CloseHandle(someHandle);
                         }
@@ -523,7 +562,8 @@
                         class MyHandle : SafeHandleZeroOrMinusOneIsInvalid
                         {
                           public MyHandle() : base(true) { }
-                          protected override bool ReleaseHandle() => CloseHandle(this.handle);
+                          protected override bool ReleaseHandle() =>
+                            CloseHandle(this.handle);
                         }
                         ```
                     </script>
@@ -556,7 +596,7 @@
                 </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## Callbacks [0]
+                        ## UnmanagedFunctionPointer
 
                         ```csharp
                         [UnmanagedFunctionPointer(CallingConvention.FastCall)]
@@ -572,7 +612,7 @@
                 </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## Callbacks [1]
+                        ## GC.KeepAlive
 
                         ```csharp
                         var myDelegate = new MarshalableDelegate(myObject.MyMethod);
@@ -585,7 +625,7 @@
                 </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## Трюки с CIL [0]
+                        ## Трюки с CIL: .export
 
                         ```
                         .assembly extern mscorlib { auto }
@@ -610,7 +650,7 @@
                 </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## Трюки с CIL [1]
+                        ## Трюки с CIL: vararg
 
                         ```
                         .method public static pinvokeimpl("msvcrt.dll" ansi cdecl)
@@ -642,12 +682,24 @@
                         7. Тесты на memory layout тоже иногда полезны.
                     </script>
                 </section>
-                <section data-markdown>
+                <section data-markdown class="center">
                     <script type="text/template">
-                        ## Это конец
-
-                        <br/><br/><br/>
-                        <small>Слайды доступны в репозитории https://github.com/ForNeVeR/talk-marshal-unsafe</small>
+                        ## Это конец.
+                        <div style="width: 100%; text-align: left;">
+                            <img src="images/the-end.svg" style="width: 35vw;"/>
+                        </div>
+                    </script>
+                </section>
+                <section data-markdown class="center">
+                    <script type="text/template">
+                        <small>
+                            Материалы доклада доступны в репозитории:<br/>
+                            https://github.com/ForNeVeR/talk-marshal-unsafe
+                            <br/><br/>
+                            Контакты автора: <br/>
+                            <a href="mailto:friedrich@fornever.me">friedrich@fornever.me</a><br/>
+                            https://t.me/fvnever
+                        </small>
                     </script>
                 </section>
             </div>
