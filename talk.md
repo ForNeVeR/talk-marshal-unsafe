@@ -122,8 +122,11 @@ end;
 ```
 
 ```cpp
-// Func<int, int> ^functor
-auto exportFunction = gcnew ExportFunction(functor, &Func<int, int>::Invoke);
+// Func<int, int> ^callback;
+// [UnmanagedFunctionPointer(CallingConvention::FastCall)]
+// delegate int ExportFunction(int);
+
+auto exportFunction = gcnew ExportFunction(callback, &Func<int, int>::Invoke);
 auto ptr = Marshal::GetFunctionPointerForDelegate(safe_cast<Delegate^>(exportFunction));
 
 prepare_call(static_cast<Callback*>(ptr.ToPointer()));

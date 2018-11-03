@@ -143,7 +143,9 @@
                         ## Байки из склепа [1]
 
                         ```cpp
-                        // Func<int, int> ^functor
+                        // Func<int, int> ^callback;
+                        // [UnmanagedFunctionPointer(CallingConvention::FastCall)]
+                        // delegate int ExportFunction(int);
                         auto exportFunction = gcnew ExportFunction(
                             functor,
                             &Func<int, int>::Invoke);
