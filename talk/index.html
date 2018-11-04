@@ -217,7 +217,8 @@
                         #if COM_LIBRARY_INSTALLED
                             IComService instance = new IComService();
                         #else
-                            const string TypeGuid = "03653ea3-b63b-447b-9d26-fa86e679087b";
+                            const string TypeGuid =
+                                "03653ea3-b63b-447b-9d26-fa86e679087b";
                             Type type = Type.GetTypeFromCLSID(Guid.Parse(TypeGuid));
                             dynamic instance = Activator.CreateInstance(type);
                         #endif
@@ -272,7 +273,6 @@
                         [DllImport("libtdjson.dylib")] // → libtdjson.dylib // macOS
 
                         [DllImport("__Internal")] // Mono only
-                        [DllImport("somelib.dll", EntryPoint = "#123")] // by ordinal, Win
                         ```
                     </script>
                 </section>
@@ -282,19 +282,10 @@
 
                         ```csharp
                         [DllImport("somelib.dll", EntryPoint = "MyFunctionName")]
-                        [DllImport("somelib.dll", EntryPoint = "#123")] // by ordinal, Win
-                        [DllImport("somelib.dll", EntryPoint = "MessageBoxA",
-                                                  ExactSpelling = true)]
-                        ```
-                    </script>
-                </section>
-                <section data-markdown>
-                    <script type="text/template">
-                        ## DllImportAttribute.ExactSpelling
-
-                        ```csharp
-                        int errorCode = Marshal.GetLastWin32Error();
-                        string errorMessage = new Win32Exception(errorCode).Message;
+                        [DllImport("somelib.dll", EntryPoint = "#123")] // by ordinal
+                        [DllImport("somelib.dll", 
+                            EntryPoint = "MessageBoxA",
+                            ExactSpelling = true)]
                         ```
                     </script>
                 </section>
@@ -405,10 +396,14 @@
 
                         ```csharp
                         [StructLayout(LayoutKind.Sequential, Pack = 8)] // 16 bytes
-                        public class DBVariant1 { public byte type; public IntPtr Pointer; }
+                        public class DBVariant1 { 
+                            public byte type; 
+                            public IntPtr Pointer; }
 
                         [StructLayout(LayoutKind.Sequential, Pack = 1)] // 9 bytes
-                        public class DBVariant2 { public byte type; public IntPtr Pointer; }
+                        public class DBVariant2 { 
+                            public byte type; 
+                            public IntPtr Pointer; }
                         ```
                     </script>
                 </section>
@@ -466,7 +461,8 @@
                         #include <cwchar>
                         #include <xutility>
 
-                        extern "C" __declspec(dllexport) void MutateString(wchar_t *string) {
+                        extern "C" __declspec(dllexport) void MutateString(
+                            wchar_t *string) {
                             std::reverse(string, std::wcschr(string, L'\0'));
                         }
                         ```
@@ -545,7 +541,8 @@
                         ## MutateStruct (managed)
 
                         ```csharp
-                        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+                        [StructLayout(LayoutKind.Sequential,
+                            CharSet = CharSet.Unicode)]
                         struct S {
                             public string field;
                         }
@@ -589,7 +586,8 @@
                         public void PassAnsiString() => PassAnsiString(stringToPass);
 
                         [Benchmark]
-                        public void PassUnicodeString() => PassUnicodeString(stringToPass);
+                        public void PassUnicodeString() => 
+                            PassUnicodeString(stringToPass);
                         ```
                     </script>
                 </section>
@@ -598,14 +596,14 @@
                         ## Сравнение быстродействия: результаты
 
                         ```
-                                    Method |    N |        Mean |     Error |    StdDev |
-                        ------------------ |----- |------------:|----------:|----------:|
-                            PassAnsiString |   10 |    89.89 ns | 1.5052 ns | 1.2569 ns |
-                         PassUnicodeString |   10 |    34.68 ns | 0.4818 ns | 0.4024 ns |
-                            PassAnsiString |  100 |   167.77 ns | 3.4897 ns | 3.0935 ns |
-                         PassUnicodeString |  100 |    36.37 ns | 0.7480 ns | 0.6631 ns |
-                            PassAnsiString | 1000 | 1,032.29 ns | 7.2073 ns | 6.0185 ns |
-                         PassUnicodeString | 1000 |    36.05 ns | 0.7446 ns | 0.9940 ns |
+                                    Method |    N |        Mean |     Error |
+                        ------------------ |----- |------------:|----------:|
+                            PassAnsiString |   10 |    89.89 ns | 1.5052 ns |
+                         PassUnicodeString |   10 |    34.68 ns | 0.4818 ns |
+                            PassAnsiString |  100 |   167.77 ns | 3.4897 ns |
+                         PassUnicodeString |  100 |    36.37 ns | 0.7480 ns |
+                            PassAnsiString | 1000 | 1,032.29 ns | 7.2073 ns |
+                         PassUnicodeString | 1000 |    36.05 ns | 0.7446 ns |
                         ```
 
                     </script>
