@@ -290,18 +290,7 @@
                 </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## DllImportAttribute: кодировки
-
-                        ```csharp
-                        public CharSet CharSet;
-                        public bool BestFitMapping;
-                        public bool ThrowOnUnmappableChar;
-                        ```
-                    </script>
-                </section>
-                <section data-markdown>
-                    <script type="text/template">
-                        ## DllImportAttribute.SetLastError
+                        ## DllImportAttribute.ExactSpelling
 
                         ```csharp
                         int errorCode = Marshal.GetLastWin32Error();
@@ -311,7 +300,18 @@
                 </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## DllImportAttribute.ExactSpelling
+                        ## DllImportAttribute: кодировки
+
+                        ```csharp
+                        public CharSet CharSet; // Auto, Ansi, Unicode
+                        public bool BestFitMapping;
+                        public bool ThrowOnUnmappableChar;
+                        ```
+                    </script>
+                </section>
+                <section data-markdown>
+                    <script type="text/template">
+                        ## DllImportAttribute.SetLastError
 
                         ```csharp
                         int errorCode = Marshal.GetLastWin32Error();
@@ -389,8 +389,7 @@
                             [FieldOffset(0)] public byte cVal;
                             [FieldOffset(0)] public ushort wVal;
                             [FieldOffset(0)] public IntPtr pszVal;
-                            [FieldOffset(0)] public ushort cchVal;
-                            [FieldOffset(0)] public ByteArray ByteArrayValue;
+                            [FieldOffset(0)] public char cchVal;
                           }
                         }
                         ```
