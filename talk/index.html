@@ -321,7 +321,7 @@
                 </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## DllImportAttribute.CallingConvention
+                        ## DllImportAttribute. CallingConvention
 
                         ```csharp
                         public enum CallingConvention
@@ -742,19 +742,32 @@
                         ```
                     </script>
                 </section>
-                <section data-markdown>
-                    <script type="text/template">
-                        ## Выводы
-
-                        1. Не нужно бояться нативного кода.
-                        2. По возможности стоит описывать код в безопасном стиле, не пользуясь
-                           указателями, если можете их избежать.
-                        3. `StructLayout` — наш друг.
-                        4. Со строками следует обращаться крайне осторожно.
-                        5. Сохраняйте ссылки на делегаты.
-                        6. Тесты.
-                        7. Тесты на memory layout тоже иногда полезны.
-                    </script>
+                <section>
+                    <h2>Заключение</h2>
+                    <ol>
+                        <li class="fragment">
+                            Не нужно бояться нативного кода.
+                        </li>
+                        <li class="fragment">
+                            По возможности стоит описывать код в безопасном
+                            стиле.
+                        </li>
+                        <li class="fragment" data-markdown>
+                            `StructLayout` — наш друг.
+                        </li>
+                        <li class="fragment">
+                            Со строками следует обращаться крайне осторожно.
+                        </li>
+                        <li class="fragment">
+                            Сохраняйте ссылки на делегаты.
+                        </li>
+                        <li class="fragment">
+                            Пишите тесты.
+                        </li>
+                        <li class="fragment">
+                            Можно даже писать тесты на memory layout.
+                        </li>
+                    </ol>
                 </section>
                 <section data-markdown class="center">
                     <script type="text/template">
