@@ -588,7 +588,7 @@ class MyHandle : SafeHandleZeroOrMinusOneIsInvalid
 ### ICustomMarshaler
 
 Для случаев, когда стандартных возможностей маршаллера вам недостаточно, есть
-специальный интерфейс `ICustomMarshaller`. Признаюсь, применения этого механизма
+специальный интерфейс `ICustomMarshaler`. Признаюсь, применения этого механизма
 я в продакшене никогда не видел, но если потребуется — он есть.
 
 ```csharp
@@ -607,12 +607,14 @@ public interface ICustomMarshaler {
 `GetInstance` с определённой сигнатурой.
 
 ```csharp
-public class MyMarshaller : ICustomMarshaller {
-  public static ICustomMarshaler GetInstance(string cookie) => new MyMarshaller();
+public class MyMarshaler : ICustomMarshaler {
+  public static ICustomMarshaler GetInstance(string cookie) => new MyMarshaler();
   // …
 }
 
-[MarshalAs(MarshalType = "Foo.Bar.MyMarshaller", MarshalCookie = "Test")]
+[MarshalAs(UnmanagedType.CustomMarshaler,
+           MarshalType = "Foo.Bar.MyMarshaler",
+           MarshalCookie = "Test")]
 ```
 
 Во всём коде corefx я нашёл только одну реализацию этого интерфейса, так что не

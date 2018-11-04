@@ -583,13 +583,14 @@
                         ```
 
                         ```csharp
-                        public class MyMarshaller : ICustomMarshaller {
+                        public class MyMarshaler : ICustomMarshaler {
                           public static ICustomMarshaler GetInstance(string cookie) =>
-                            new MyMarshaller();
+                            new MyMarshaler();
                           // …
                         }
 
-                        [MarshalAs(MarshalType = "Foo.Bar.MyMarshaller",
+                        [MarshalAs(UnmanagedType.CustomMarshaler,
+                                   MarshalType = "Foo.Bar.MyMarshaler",
                                    MarshalCookie = "Test")]
                         ```
                     </script>
