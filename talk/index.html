@@ -263,7 +263,7 @@
                 </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## DllImportAttribute :: dllName
+                        ## DllImportAttribute: dllName
 
                         ```csharp
                         [DllImport("tdjson.dll")] // → tdjson.dll      // Windows
@@ -273,6 +273,76 @@
 
                         [DllImport("__Internal")] // Mono only
                         [DllImport("somelib.dll", EntryPoint = "#123")] // by ordinal, Win
+                        ```
+                    </script>
+                </section>
+                <section data-markdown>
+                    <script type="text/template">
+                        ## DllImportAttribute.EntryPoint, ExactSpelling
+
+                        ```csharp
+                        [DllImport("somelib.dll", EntryPoint = "MyFunctionName")]
+                        [DllImport("somelib.dll", EntryPoint = "#123")] // by ordinal, Win
+                        [DllImport("somelib.dll", EntryPoint = "MessageBoxA",
+                                                  ExactSpelling = true)]
+                        ```
+                    </script>
+                </section>
+                <section data-markdown>
+                    <script type="text/template">
+                        ## DllImportAttribute: кодировки
+
+                        ```csharp
+                        public CharSet CharSet;
+                        public bool BestFitMapping;
+                        public bool ThrowOnUnmappableChar;
+                        ```
+                    </script>
+                </section>
+                <section data-markdown>
+                    <script type="text/template">
+                        ## DllImportAttribute.SetLastError
+
+                        ```csharp
+                        int errorCode = Marshal.GetLastWin32Error();
+                        string errorMessage = new Win32Exception(errorCode).Message;
+                        ```
+                    </script>
+                </section>
+                <section data-markdown>
+                    <script type="text/template">
+                        ## DllImportAttribute.ExactSpelling
+
+                        ```csharp
+                        int errorCode = Marshal.GetLastWin32Error();
+                        string errorMessage = new Win32Exception(errorCode).Message;
+                        ```
+                    </script>
+                </section>
+                <section data-markdown>
+                    <script type="text/template">
+                        ## DllImportAttribute.CallingConvention
+
+                        ```csharp
+                        public enum CallingConvention
+                        {
+                          Winapi = 1,
+                          Cdecl = 2,
+                          StdCall = 3,
+                          ThisCall = 4,
+                          FastCall = 5,
+                        }
+                        ```
+                    </script>
+                </section>
+                <section data-markdown>
+                    <script type="text/template">
+                        ## DllImportAttribute.PreserveSig
+
+                        ```csharp
+                        string GetSomething(); // true
+                        // ⇒
+                        HRESULT GetSomething([out, retval] BSTR *pRetVal); // false
                         ```
                     </script>
                 </section>
