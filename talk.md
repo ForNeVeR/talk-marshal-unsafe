@@ -7,9 +7,9 @@
 выхода за пределы массивов). На такой платформе программисту живётся очень
 удобно — ровно до тех пор, пока ему не приходится начать интеропиться с кодом,
 написанным вне платформы. Сейчас, с распространением .NET (Core) на новые
-платформы, это становится ещё более важным — потому для новых платформ ещё не
-написано такого большого количества managed-библиотек, и поэтому частенько
-приходится делать свои обёртки для нативного кода.
+платформы, это становится ещё более важным — для новых платформ ещё не написано
+такого большого количества managed-библиотек, и поэтому частенько приходится
+делать свои обёртки для нативного кода.
 
 К счастью, .NET обладает богатым инструментарием, который позволяет практически
 прозрачно общаться с нативным кодом. Этот доклад познакомит вас с основными
@@ -21,16 +21,16 @@
 В данном докладе я постараюсь говорить обо всех современных реализациях .NET: о
 .NET Framework, Mono и .NET Core.
 
-## Способы взаимодействия управляемого и неуправляемого кода
+## Технологии
 
 Представим, что мы пишем программу на C#, и вдруг появляется нативная
 библиотека, с которой мы хотим поработать. В общем в .NET-платформе есть
 несколько основных способов, как нам позвать нативный код:
 
-- это C++/CLI — вариант языка C++, который компилируется в байт-код виртуальной
-  машины .NET
-- COM — бинарный кроссязыковый инструмент взаимодействия от Microsoft
-- P/Invoke — встроенный в платформу механизм для вызова чужих функций
+- это **C++/CLI** — вариант языка C++, который компилируется в байт-код
+  виртуальной машины .NET
+- **COM** — бинарный кроссязыковый инструмент взаимодействия от Microsoft
+- **P/Invoke** — встроенный в платформу механизм для вызова чужих функций
 
 На самом деле есть и более экзотичные способы — можно, например, руками
 нагенерировать машинного кода, пометить страничку с ним как выполняемую и
@@ -39,17 +39,11 @@
 Основной упор в докладе я сделаю на последнем пункте, но для начала давайте
 кратко рассмотрим все остальные.
 
----
-
-- C++/CLI
-- COM
-- P/Invoke
-
 ## C++/CLI
 
-Начнём с C++/CLI. Это такой язык, который основан на стандартном C++, но в него,
-во-первых, добавили возможности для интеропа с системой типов .NET. Это
-управляемые указатели (которые, по сути, соответствуют нашим ссылкам из C#):
+Начнём с C++/CLI. Это язык, который основан на стандартном C++, но в него
+добавили возможности для интеропа с системой типов .NET. Это управляемые
+указатели (которые, по сути, соответствуют нашим ссылкам из C#):
 
 ```cpp
 System::String ^foo = gcnew System::String("foobaz");
@@ -67,49 +61,68 @@ if (System::Int32::TryParse("42", ref))
 (этот пример немножко бессмысленный, но я просто хотел показать кусочек
 синтаксиса с объявлением tracking reference)
 
-В этом языке отличается managed- и unmanaged-код: есть специальные прагмы,
+Если у вас уже есть заголовочные файлы от какой-то нативной библиотеки, то вы
+просто берёте их, включаете в программу на C++/CLI директивой `#include`,
+выставляете managed-интерфейс — и дело в шляпе.
+
+```cpp
+#include <Windows.h>
+
+void function_called_from_managed_code() {
+    HANDLE mutex = CreateMutex(nullptr, false, nullptr);
+}
+```
+
+В этом языке различается managed- и unmanaged-код: есть специальные прагмы,
 которыми мы размечаем свою программу, указывая секции с управляемым и нативным
-кодом. Типы у управляемого кода свои, для их объявления есть отдельные
+кодом.
+
+```cpp
+#pragma managed
+ref class ManagedClass {
+    public:
+        property int Foo {
+            int get() { return 0; }
+            void set(int value) {  }
+        }
+};
+
+#pragma unmanaged
+int __fastcall perform_wrapped_call() {
+    int argument;
+    __asm { mov argument, eax }
+    return argument;
+}
+```
+
+Типы у управляемого кода свои, для их объявления есть отдельные
 синтаксические конструкции. Темплейты работают как для нативного, так и для
 управляемого кода, при этом темплейты отличаются от генериков.
 
 При этом нативный код реально компилируется в x86 или x86-64 машинный код,
-который складывается в специальные места в нашей управляемой сборке.
+который складывается в специальные места в нашей управляемой сборке. Помимо
+прочего, компилятор от MS поддерживает ассемблерные вставки — впрочем, только на
+x86. Но, по моему опыту, если вам это всё вообще потребовалось на Windows, то
+скорее всего у вас есть какие-то либы от вендора, и они скорее всего как раз
+x86. Об этом мы поговорим чуть дальше.
 
-Ввиду своего происхождения язык обладает некоторыми очевидными достоинствами:
+Существенным недостатком, который, на мой взгляд, убивает эту интересную
+технологию на корню, является некроссплатформенность кода. На сегодняшний день
+нет планов по поддержке в Mono, а официальные ответы MS про .NET Core таковы
+(как видите, Windows-only, см. https://github.com/dotnet/coreclr/issues/659):
 
-- **простое потребление заголовочных файлов и API на C и C++**: если у вас уже
-  есть заголовочные файлы от какой-то нативной библиотеки, то вы просто берёте
-  их, инклудите в программу на C++/CLI, выставляете managed-интерфейс — и дело в
-  шляпе
-- **возможность использования управляемого и неуправляемого кода в одном
-  модуле**, то есть можно при желании тут же написать кусочки логики или
-  маппинга между управляемыми и неуправляемыми типами
-- **ассемблерные вставки на x86**: компилятор от MS поддерживает ассемблерные
-  вставки — впрочем, только на x86. Но, по моему опыту, если вам это всё вообще
-  потребовалось на Windows, то скорее всего у вас есть какие-то либы от вендора,
-  и они скорее всего как раз x86. Так что можно сказать, что вам повезло — ну
-  или не повезло :)
+> **2015-04-10**: There is no plan to support C++/CLI with .NET Core.
 
-Недостатки:
+> **2018-09-15**: You can track progress on Windows-only Managed C++ support in
+> #18013.
 
-- **не кроссплатформенно**, что, на мой взгляд, убивает эту интересную
-  технологию на корню. На сегодняшний день нет планов по её поддержке ни в .NET
-  Core, ни в Mono.
+## Байки из склепа
 
-Причём я не шучу про ассемблерные вставки. У нас в продакшене однажды имела
-место именно такая ситуация: был внешний API для какой-то железки или иной
-системы, который был реализован на Delphi. У этого API было несколько функций,
-которые в качестве аргументов принимали колбэки. Мы обычно можем в качестве
-колбэков передавать наши managed-делегаты (как это работает — мы ещё обсудим
-чуть позже). Только вот Delphi-программисты в объявлении одного из колбэков
-забыли поставить спецификатор `stdcall`, и поэтому у него была дефолтовая для
-Delphi конвенция вызова — которая, разумеется, в 2015 году уже никем официально
-не поддерживалась, и нашим стандартным .NET-интеропом тоже. Одним из решений
-этой проблемы было написание кода на C++/CLI, который с помощью ассемблерной
-вставки реализует эту экзотическую конвенцию.
-
-Готовясь к докладу, я даже для смеха воспроизвёл этот случай:
+Расскажу историю, которая случилась со мной в продакшене. Был внешний API для
+какой-то железки или иной системы, который был реализован на Delphi. У этого API
+было несколько функций, которые в качестве аргументов принимали колбэки. Мы
+обычно можем в качестве колбэков передавать наши managed-делегаты (как это
+работает — мы ещё обсудим чуть позже). Описание API выглядело примерно так:
 
 ```delphi
 type
@@ -121,17 +134,25 @@ begin
 end;
 ```
 
+В объявлении одного из колбэков Delphi-программисты забыли поставить
+спецификатор `stdcall`, и поэтому у него была стандартная для Delphi конвенция
+вызова — которая, разумеется, в 2015 году уже никем официально не
+поддерживалась, и нашим стандартным .NET-интеропом тоже. Одним из решений этой
+проблемы было написание кода на C++/CLI, который с помощью ассемблерной вставки
+реализует эту экзотическую конвенцию.
+
 ```cpp
 // Func<int, int> ^callback;
 // [UnmanagedFunctionPointer(CallingConvention::FastCall)]
 // delegate int ExportFunction(int);
-
-auto exportFunction = gcnew ExportFunction(callback, &Func<int, int>::Invoke);
-auto ptr = Marshal::GetFunctionPointerForDelegate(safe_cast<Delegate^>(exportFunction));
+auto exportFunction = gcnew ExportFunction(
+    functor,
+    &Func<int, int>::Invoke);
+auto ptr = Marshal::GetFunctionPointerForDelegate(
+    safe_cast<Delegate^>(exportFunction));
 
 prepare_call(static_cast<Callback*>(ptr.ToPointer()));
 int result = doCallFunction(&perform_wrapped_call);
-GC::KeepAlive(exportFunction);
 ```
 
 ```cpp
@@ -139,27 +160,36 @@ Callback *CallbackInstance;
 void prepare_call(Callback *arg) { CallbackInstance = arg; }
 
 void clear_call() {
-  CallbackInstance = nullptr;
+    CallbackInstance = nullptr;
 }
 
 int __fastcall perform_wrapped_call() {
-  int real_argument;
-  __asm { mov real_argument, eax }
-  return CallbackInstance(real_argument);
+    int real_argument;
+    __asm { mov real_argument, eax }
+    return CallbackInstance(real_argument);
 }
 ```
 
-## COM
+Вот так, если очень хочется, можно писать на ассемблере для .NET.
 
-Стандартный кроссязыковой способ интеропа в Windows, не работает на остальных
-платформах (хотя энтузиасты поддерживают несколько реализаций под другие
-платформы).
+## Component Object Model
+
+Component Object Model, или просто COM — это стандартный кроссязыковой способ
+интеропа в Windows, который не работает на остальных платформах (хотя реализации
+на других платформах поддерживаются энтузиастами).
 
 Обычно COM-библиотеки глобально регистрируются в системе, и после этого
 референсы на них начинают работать во всех managed-проектах. Из TLB добывается
 метаинформация, на основании которой делается managed-интерфейс для работы с
 библиотечными типами. Это позволяет иметь автодополнение и какую-никакую
 уверенность, что C#-код написан правильно.
+
+```csharp
+IComService instance = new IComService();
+instance.HelloWorld();
+```
+
+(да-да, для COM-интерфейсов в C# можно официально вызывать конструктор)
 
 Недостатки этой технологии: не кроссплатформенно, и плохо работает, если в
 системе не установлены нужные типы — например, на билд-сервере собрать код,
@@ -180,24 +210,19 @@ int __fastcall perform_wrapped_call() {
 Предположим, что у нас есть такой код (да, если кто-то не знает, у
 COM-интерфейсов официально можно вызывать конструкторы):
 
-```csharp
-IComService instance = new IComService();
-instance.HelloWorld();
-```
-
 Для того, чтобы он умел также собираться с использованием `dynamic`, нужно
 узнать GUID нужного нам типа, и написать что-то вроде такого:
 
 ```csharp
 #if COM_LIBRARY_INSTALLED
-  IComService instance = new IComService();
+    IComService instance = new IComService();
 #else
-  const string TypeGuid = "03653ea3-b63b-447b-9d26-fa86e679087b";
-  Type type = Type.GetTypeFromCLSID(Guid.Parse(TypeGuid));
-  dynamic instance = Activator.CreateInstance(type);
+    const string TypeGuid = "03653ea3-b63b-447b-9d26-fa86e679087b";
+    Type type = Type.GetTypeFromCLSID(Guid.Parse(TypeGuid));
+    dynamic instance = Activator.CreateInstance(type);
 #endif
 
-  instance.HelloWorld();
+    instance.HelloWorld();
 ```
 
 Здесь мы в зависимости от предопределённой константы описываем либо классическое
@@ -211,8 +236,16 @@ instance.HelloWorld();
 не заставляет переписывать весь интеграционный слой на другом языке, а
 во-вторых, он работает на всех платформах.
 
-Работа с P/Invoke начинается, конечно, с атрибута `DllImport`. Давайте посмотрим
-на его свойства:
+Работа с P/Invoke начинается, конечно, с атрибута `DllImport`, который в простом
+варианте выглядит примерно так:
+
+```csharp
+[DllImport("StringConsumer.dll", CharSet = CharSet.Unicode)]
+private static extern void PassUnicodeString(string str);
+```
+
+Давайте посмотрим на его свойства, которых значительно больше, чем можно было бы
+предположить:
 
 ```csharp
 public sealed class DllImportAttribute : Attribute
@@ -229,45 +262,88 @@ public sealed class DllImportAttribute : Attribute
 }
 ```
 
-- в конструктор этот атрибут принимает название библиотеки, из которой будут
-  вызываться функции: под Windows и macOS это полное имя файла, а под Linux и
-  .NET Core это только имя библиотеки без префикса и постфикса
+В конструктор этот атрибут принимает название библиотеки, из которой будут
+вызываться функции: под Windows и macOS это полное имя файла, а под Linux и .NET
+Core это только имя библиотеки без префикса и постфикса.
 
-  ```csharp
-  [DllImport("tdjson.dll")] // → tdjson.dll   // Windows
-  [DllImport("tdjson")]     // → libtdjson.so // Linux, .NET Core
-  [DllImport("libtdjson.so")]  // → libtdjson.so // Linux, Mono
-  [DllImport("libtdjson.dylib")] // → libtdjson.dylib // macOS
+```csharp
+[DllImport("tdjson.dll")] // → tdjson.dll   // Windows
+[DllImport("tdjson")]     // → libtdjson.so // Linux, .NET Core
+[DllImport("libtdjson.so")]  // → libtdjson.so // Linux, Mono
+[DllImport("libtdjson.dylib")] // → libtdjson.dylib // macOS
 
-  [DllImport("__Internal")] // Mono only
-  [DllImport("somelib.dll", EntryPoint = "#123")] // by ordinal, Windows
-  ```
+[DllImport("__Internal")] // Mono only
+```
 
-  Помимо этого, Mono также умеет загружать символы прямо из текущего файла (для
-  чего он, конечно, должен быть скомпилирован в нативный код) — это эдакий
-  аналог динамического связывания из C++/CLI.
+Помимо этого, Mono также умеет загружать символы прямо из текущего файла (для
+чего он, конечно, должен быть скомпилирован в нативный код) — это эдакий аналог
+динамического связывания из C++/CLI.
+
+```csharp
+[DllImport("somelib.dll", EntryPoint = "MyFunctionName")]
+[DllImport("somelib.dll", EntryPoint = "#123")] // by ordinal
+[DllImport("somelib.dll",
+    EntryPoint = "MessageBoxA",
+    ExactSpelling = true)]
+```
+
 - `EntryPoint` — это имя функции, которая будет вызвана из библиотеки. Если вы
-  хотите импортировать функцию по ординалу (бывает такая надобность) — можно
-  использовать имена типа `#123`.
+  хотите импортировать функцию по порядковому номеру (бывает такая надобность) —
+  можно использовать имена типа `#123`.
 - `ExactSpelling` нужен для того, чтобы CLR могла перестать угадывать название
-  функции (`A` или `W`-варианты для WinAPI)
-- `CharSet`: `Auto` / `Ansi` / `Unicode` (по умолчанию в CLI `Auto`, но в C# –
-  `Ansi`)
-- `BestFitMapping` контролирует подстановку символов для ANSI-кодировки
-- `ThrowOnUnmappableChar` — нужен для случаев, когда мы пытаемся скормить
-  ANSI-функции юникод, который нормально не представляется в ANSI
-- `SetLastError` — нужно выставлять для функций, после которых вызывателю
-  хочется вызвать `Marshal.GetLastWin32Error`; это нужно для случаев, когда сама
-  CLR могла бы затереть последнюю ошибку своими вызовами.
-- `CallingConvention` — это нативная конвенция вызова
-- `PreserveSig` влияет на интерпретацию возвращаемых значений типа `HRESULT`:
-  если `PreserveSig = true` (по умолчанию), то `HRESULT` будет возвращён как
-  есть, а если `false` — то невалидный `HRESULT` будет выброшен как исключение.
+  функции (`A` или `W`-варианты для WinAPI).
 
-### Передача аргументов во внешние функции
+```csharp
+public CharSet CharSet; // Auto, Ansi, Unicode
+public bool BestFitMapping;
+public bool ThrowOnUnmappableChar;
+```
+
+- `CharSet`: `Auto` / `Ansi` / `Unicode` (по умолчанию в CLI `Auto`, но в C# –
+  `Ansi`).
+- `BestFitMapping` контролирует подстановку символов для ANSI-кодировки.
+- `ThrowOnUnmappableChar` — нужен для случаев, когда мы пытаемся скормить
+  ANSI-функции юникод, который нормально не представляется в ANSI.
+
+`SetLastError` — нужно выставлять для функций, после которых вызывателю хочется
+вызвать `Marshal.GetLastWin32Error`; это нужно для случаев, когда сама CLR могла
+бы затереть последнюю ошибку своими вызовами. Вот так можно получить текст
+ошибки.
+
+```csharp
+int errorCode = Marshal.GetLastWin32Error();
+string errorMessage = new Win32Exception(errorCode).Message;
+```
+
+`CallingConvention` — это соглашение о вызове нативной функции — то есть порядок
+выделения и освобождения стека, порядок и способ передачи аргументов (через
+стек, через регистры).
+
+```csharp
+public enum CallingConvention
+{
+    Winapi = 1,
+    Cdecl = 2,
+    StdCall = 3,
+    ThisCall = 4,
+    FastCall = 5,
+}
+```
+
+`PreserveSig` влияет на интерпретацию возвращаемых значений типа `HRESULT`: если
+`PreserveSig = true` (по умолчанию), то `HRESULT` будет возвращён как есть, а
+если `false` — то невалидный `HRESULT` будет выброшен как исключение.
+
+```csharp
+string GetSomething(); // true
+// ⇒
+HRESULT GetSomething([out, retval] BSTR *pRetVal); // false
+```
+
+### Передача аргументов в натив
 
 Мы разобрались с тем, как рантайм находит функции во внешних библиотеках. Теперь
-поговорим о том, как в эти функции мы передаём аргументы. Как известно, нативный
+поговорим о том, как в эти функции передаются аргументы. Как известно, нативный
 код умеет принимать данные по значению или по указателю.
 
 Для того, чтобы передать значение, мы просто передаём структуру, как мы привыкли
@@ -281,28 +357,32 @@ public sealed class DllImportAttribute : Attribute
 интереснее. По указателю в нативный код передаются:
 
 - ссылочные типы (классы, делегаты)
-- unsafe-указатели
-
-  ```csharp
-  int[] x = new int[10];
-  fixed (int* ptr = x) {
-      Native.Call(ptr);
-  }
-  ```
 - что угодно через `ref` или `out` (следует отметить, что с нативной стороны
   `ref` ничем не отличается от `out`)
 - `IntPtr`
+- unsafe-указатели
+
+Да, если кто-то забыл, в C# есть возможность прямой работы с указателями.
+Выглядит это вот так:
+
+```csharp
+int[] x = new int[10];
+fixed (int* ptr = x) {
+    Native.Call(ptr);
+}
+```
 
 При этом структуры, которые передаются по указателю, на время выполнения
 нативного вызова _пинятся_ в памяти — то есть GC не будет выполнять перемещение
 таких объектов. Пининг, однако, не бесплатен, и стоит какой-то
 производительности.
 
-Все типы разделяются на категории blittable и non-blittable. При передаче
-blittable-типа в нативный код по указателю, туда передаётся просто указатель на
-нашу управляемую память — копирования при этом не происходит. Для non-blittable
-типов может потребоваться их преобразование и копирование, поэтому вызовы с
-такими типами всегда обходятся дороже.
+Все типы разделяются на категории blittable (у которых нативное и
+managed-представление совпадают) и non-blittable. При передаче blittable-типа в
+нативный код по указателю, туда передаётся просто указатель на нашу управляемую
+память — копирования при этом не происходит. Для non-blittable типов может
+потребоваться их преобразование и копирование, поэтому вызовы с такими типами
+всегда обходятся дороже.
 
 ### Размещение структур в памяти
 
@@ -317,21 +397,17 @@ blittable-типа в нативный код по указателю, туда 
 ```csharp
 [StructLayout(LayoutKind.Sequential)]
 public class DBVariant {
-  public byte type;
-  public Variant Value;
+    public byte type;
+    public Variant Value;
 
-  [StructLayout(LayoutKind.Explicit)]
-  public struct Variant {
-    [FieldOffset(0)] public byte bVal;
-    [FieldOffset(0)] public byte cVal;
-    [FieldOffset(0)] public ushort wVal;
-    [FieldOffset(0)] public short sVal;
-    [FieldOffset(0)] public uint dVal;
-    [FieldOffset(0)] public int lVal;
-    [FieldOffset(0)] public IntPtr pszVal;
-    [FieldOffset(0)] public ushort cchVal;
-    [FieldOffset(0)] public ByteArray ByteArrayValue;
-  }
+    [StructLayout(LayoutKind.Explicit)]
+    public struct Variant {
+        [FieldOffset(0)] public byte bVal;
+        [FieldOffset(0)] public byte cVal;
+        [FieldOffset(0)] public ushort wVal;
+        [FieldOffset(0)] public IntPtr pszVal;
+        [FieldOffset(0)] public char cchVal;
+    }
 }
 ```
 
@@ -360,10 +436,18 @@ public class DBVariant {
 
 ```csharp
 [StructLayout(LayoutKind.Sequential, Pack = 8)] // 16 bytes
-public class DBVariant1 { public byte type; public IntPtr Pointer; }
+public class DBVariant1 {
+  public byte type;
+  // padding: 7 bytes
+  public IntPtr Pointer;
+}
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)] // 9 bytes
-public class DBVariant2 { public byte type; public IntPtr Pointer; }
+public class DBVariant2 {
+  public byte type;
+  // no padding
+  public IntPtr Pointer;
+}
 ```
 
 Если мы говорим про memory layout, трудно не упомянуть ещё одну малоизвестную
@@ -377,13 +461,13 @@ public class DBVariant2 { public byte type; public IntPtr Pointer; }
 ```c
 // C
 struct X {
-  int Array[30];
+    int Array[30];
 };
 ```
 
 ```csharp
 unsafe struct X {
-  fixed int Array[30];
+    fixed int Array[30];
 }
 ```
 
@@ -394,7 +478,7 @@ layout — не стесняйтесь на это написать тесты. 
 ```csharp
 struct Foo { public int x, y; }
 Foo f = new Foo();
-int offset1 = (byte*) &f - (byte*) &f.x;
+int offset1 = (byte*) &f.x - (byte*) &f;
 Assert.Equal(0, offset1);
 ```
 
@@ -416,8 +500,7 @@ extern void Foo([MarshalAs(UnmanagedType.LPWStr)] string arg);
 ```
 
 Есть ещё варианты для выбора кодировки в зависимости от платформы (а-ля
-`LPTStr`), но они в современном мире не нужны, т.к. были нужны только для
-неюникодовых версий Windows.
+`LPTStr`).
 
 Стоит помнить, что наши строки в .NET — иммутабельные, так что стоит очень
 аккуратно относиться к использованию API, которые могут эти строки помутировать.
@@ -428,11 +511,11 @@ extern void Foo([MarshalAs(UnmanagedType.LPWStr)] string arg);
 #include <xutility>
 
 extern "C" __declspec(dllexport) void MutateString(wchar_t *string) {
-  std::reverse(string, std::wcschr(string, L'\0'));
+    std::reverse(string, std::wcschr(string, L'\0'));
 }
 ```
 
-И напишем простой код на C#, который использует эту внешнюю функцию
+И напишем простой код на C#, который использует эту внешнюю функцию:
 
 ```csharp
 [DllImport("Project1.dll", CharSet = CharSet.Unicode)]
@@ -447,9 +530,11 @@ static void Main() {
 }
 ```
 
-Как видим, нативный код нам не просто помутировал строку, а поменял _строковую
-константу_, и теперь везде в программе она отображается поломанной. Этот код
-плохой, и так делать не следует!
+Тут нужно вспомнить про интернирование строк: в некоторых случаях CLR будет
+представлять несколько одинаковых строк в памяти единственным экземпляром. Так
+вот и получается, что нативный код нам не просто помутировал строку, а поменял
+_строковую константу_, и теперь везде в программе она отображается поломанной.
+Этот код плохой, и так делать не следует!
 
 В таком случае стоит использовать `StringBuilder`: он может работать с теми же
 API, с которыми работают обычные строки, но в нём можно спокойно мутировать
@@ -548,14 +633,14 @@ public void PassUnicodeString() => PassUnicodeString(stringToPass);
 передачи указателя.
 
 ```
-            Method |    N |        Mean |     Error |    StdDev |
------------------- |----- |------------:|----------:|----------:|
-    PassAnsiString |   10 |    89.89 ns | 1.5052 ns | 1.2569 ns |
- PassUnicodeString |   10 |    34.68 ns | 0.4818 ns | 0.4024 ns |
-    PassAnsiString |  100 |   167.77 ns | 3.4897 ns | 3.0935 ns |
- PassUnicodeString |  100 |    36.37 ns | 0.7480 ns | 0.6631 ns |
-    PassAnsiString | 1000 | 1,032.29 ns | 7.2073 ns | 6.0185 ns |
- PassUnicodeString | 1000 |    36.05 ns | 0.7446 ns | 0.9940 ns |
+            Method |    N |        Mean |     Error |
+------------------ |----- |------------:|----------:|
+    PassAnsiString |   10 |    89.89 ns | 1.5052 ns |
+ PassUnicodeString |   10 |    34.68 ns | 0.4818 ns |
+    PassAnsiString |  100 |   167.77 ns | 3.4897 ns |
+ PassUnicodeString |  100 |    36.37 ns | 0.7480 ns |
+    PassAnsiString | 1000 | 1,032.29 ns | 7.2073 ns |
+ PassUnicodeString | 1000 |    36.05 ns | 0.7446 ns |
 ```
 
 ### SafeHandle
@@ -593,9 +678,8 @@ class MyHandle : SafeHandleZeroOrMinusOneIsInvalid
 
 ### ICustomMarshaler
 
-Для случаев, когда стандартных возможностей маршаллера вам недостаточно, есть
-специальный интерфейс `ICustomMarshaler`. Признаюсь, применения этого механизма
-я в продакшене никогда не видел, но если потребуется — он есть.
+Для случаев, когда стандартных возможностей маршалера вам недостаточно, есть
+специальный интерфейс `ICustomMarshaler`.
 
 ```csharp
 public interface ICustomMarshaler {
@@ -622,9 +706,6 @@ public class MyMarshaler : ICustomMarshaler {
            MarshalType = "Foo.Bar.MyMarshaler",
            MarshalCookie = "Test")]
 ```
-
-Во всём коде corefx я нашёл только одну реализацию этого интерфейса, так что не
-будем слишком подробно на нём останавливаться.
 
 ### Пара слов про вызов делегатов из нативного кода
 
@@ -726,10 +807,9 @@ call vararg int32 printf(string, ..., int32, int32)
 ## Выводы
 
 1. Не нужно бояться нативного кода.
-2. По возможности стоит описывать код в безопасном стиле, не пользуясь
-   указателями, если можете их избежать.
+2. По возможности стоит описывать код в безопасном стиле.
 3. `StructLayout` — наш друг.
 4. Со строками следует обращаться крайне осторожно.
 5. Сохраняйте ссылки на делегаты.
-6. Тесты.
-7. Тесты на memory layout тоже иногда полезны.
+6. Пишите тесты.
+7. Можно даже писать тесты на memory layout.

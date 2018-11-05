@@ -93,7 +93,7 @@
                         #include <Windows.h>
 
                         void function_called_from_managed_code() {
-                            HANDLE mutex = CreateMutex(nullptr, false, nullptr);
+                          HANDLE mutex = CreateMutex(nullptr, false, nullptr);
                         }
                         ```
                     </script>
@@ -170,7 +170,6 @@
 
                         prepare_call(static_cast<Callback*>(ptr.ToPointer()));
                         int result = doCallFunction(&perform_wrapped_call);
-                        GC::KeepAlive(exportFunction);
                         ```
                     </script>
                 </section>
@@ -183,13 +182,13 @@
                         void prepare_call(Callback *arg) { CallbackInstance = arg; }
 
                         void clear_call() {
-                            CallbackInstance = nullptr;
+                          CallbackInstance = nullptr;
                         }
 
                         int __fastcall perform_wrapped_call() {
-                            int real_argument;
-                            __asm { mov real_argument, eax }
-                            return CallbackInstance(real_argument);
+                          int real_argument;
+                          __asm { mov real_argument, eax }
+                          return CallbackInstance(real_argument);
                         }
                         ```
                     </script>
@@ -211,19 +210,19 @@
                 </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## dymanic & #if
+                        ## dynamic & #if
 
                         ```csharp
                         #if COM_LIBRARY_INSTALLED
-                            IComService instance = new IComService();
+                          IComService instance = new IComService();
                         #else
-                            const string TypeGuid =
-                                "03653ea3-b63b-447b-9d26-fa86e679087b";
-                            Type type = Type.GetTypeFromCLSID(Guid.Parse(TypeGuid));
-                            dynamic instance = Activator.CreateInstance(type);
+                          const string TypeGuid =
+                            "03653ea3-b63b-447b-9d26-fa86e679087b";
+                          Type type = Type.GetTypeFromCLSID(Guid.Parse(TypeGuid));
+                          dynamic instance = Activator.CreateInstance(type);
                         #endif
 
-                        instance.HelloWorld();
+                          instance.HelloWorld();
                         ```
                     </script>
                 </section>
@@ -283,9 +282,9 @@
                         ```csharp
                         [DllImport("somelib.dll", EntryPoint = "MyFunctionName")]
                         [DllImport("somelib.dll", EntryPoint = "#123")] // by ordinal
-                        [DllImport("somelib.dll", 
-                            EntryPoint = "MessageBoxA",
-                            ExactSpelling = true)]
+                        [DllImport("somelib.dll",
+                          EntryPoint = "MessageBoxA",
+                          ExactSpelling = true)]
                         ```
                     </script>
                 </section>
@@ -339,7 +338,7 @@
                 </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## Передача значений в натив
+                        ## Передача аргументов
 
                         Values:
 
@@ -396,14 +395,16 @@
 
                         ```csharp
                         [StructLayout(LayoutKind.Sequential, Pack = 8)] // 16 bytes
-                        public class DBVariant1 { 
-                            public byte type; 
-                            public IntPtr Pointer; }
+                        public class DBVariant1 {
+                          public byte type;
+                          // padding: 7 bytes
+                          public IntPtr Pointer; }
 
                         [StructLayout(LayoutKind.Sequential, Pack = 1)] // 9 bytes
-                        public class DBVariant2 { 
-                            public byte type; 
-                            public IntPtr Pointer; }
+                        public class DBVariant2 {
+                          public byte type;
+                          // no padding
+                          public IntPtr Pointer; }
                         ```
                     </script>
                 </section>
@@ -586,7 +587,7 @@
                         public void PassAnsiString() => PassAnsiString(stringToPass);
 
                         [Benchmark]
-                        public void PassUnicodeString() => 
+                        public void PassUnicodeString() =>
                             PassUnicodeString(stringToPass);
                         ```
                     </script>
@@ -706,8 +707,9 @@
                         .module SpySharp.Hooks.dll
 
                         .method assembly static native int
-                            modopt ([mscorlib]System.Runtime.CompilerServices.CallConvStdcall)
-                            HookProc(
+                          modopt (
+                            [mscorlib]System.Runtime.CompilerServices.CallConvStdcall)
+                          HookProc(
                           int32 nCode,
                           native int lParam,
                           native int wParam) {
