@@ -146,7 +146,7 @@ end;
 // [UnmanagedFunctionPointer(CallingConvention::FastCall)]
 // delegate int ExportFunction(int);
 auto exportFunction = gcnew ExportFunction(
-    functor,
+    callback,
     &Func<int, int>::Invoke);
 auto ptr = Marshal::GetFunctionPointerForDelegate(
     safe_cast<Delegate^>(exportFunction));
@@ -335,9 +335,11 @@ public enum CallingConvention
 если `false` — то невалидный `HRESULT` будет выброшен как исключение.
 
 ```csharp
-string GetSomething(); // true
-// ⇒
-HRESULT GetSomething([out, retval] BSTR *pRetVal); // false
+[DllImport("my.dll", PreserveSig = true)]
+HRESULT GetSomething(/*[out, retval]*/ BSTR *pRetVal);
+
+[DllImport("my.dll", PreserveSig = false)]
+extern static string GetSomething();
 ```
 
 ### Передача аргументов в натив

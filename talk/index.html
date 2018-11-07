@@ -156,20 +156,34 @@
                 </section>
                 <section data-markdown>
                     <script type="text/template">
-                        ## Managed
+                        ## Callbacks
 
                         ```cpp
-                        // Func<int, int> ^callback;
-                        // [UnmanagedFunctionPointer(CallingConvention::FastCall)]
-                        // delegate int ExportFunction(int);
+                        Func<int, int> ^callback;
+
+                        [UnmanagedFunctionPointer(CallingConvention::FastCall)]
+                        delegate int ExportFunction(int);
+                        ```
+                    </script>
+                </section>
+                <section data-markdown>
+                    <script type="text/template">
+                        ## Delegate construction
+
+                        ```cpp
                         auto exportFunction = gcnew ExportFunction(
-                            functor,
+                            callback,
                             &Func<int, int>::Invoke);
+                        ```
+                    </script>
+                </section>
+                <section data-markdown>
+                    <script type="text/template">
+                        ## GetFunctionPointerForDelegate
+
+                        ```cpp
                         auto ptr = Marshal::GetFunctionPointerForDelegate(
                             safe_cast<Delegate^>(exportFunction));
-
-                        prepare_call(static_cast<Callback*>(ptr.ToPointer()));
-                        int result = doCallFunction(&perform_wrapped_call);
                         ```
                     </script>
                 </section>
@@ -179,11 +193,6 @@
 
                         ```cpp
                         Callback *CallbackInstance;
-                        void prepare_call(Callback *arg) { CallbackInstance = arg; }
-
-                        void clear_call() {
-                          CallbackInstance = nullptr;
-                        }
 
                         int __fastcall perform_wrapped_call() {
                           int real_argument;
@@ -330,9 +339,11 @@
                         ## DllImportAttribute.PreserveSig
 
                         ```csharp
-                        string GetSomething(); // true
-                        // ⇒
-                        HRESULT GetSomething([out, retval] BSTR *pRetVal); // false
+                        [DllImport("my.dll", PreserveSig = true)]
+                        HRESULT GetSomething(/*[out, retval]*/ BSTR *pRetVal);
+
+                        [DllImport("my.dll", PreserveSig = false)]
+                        extern static string GetSomething();
                         ```
                     </script>
                 </section>
