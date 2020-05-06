@@ -728,7 +728,7 @@ public class MyMarshaler : ICustomMarshaler {
 Вот пример того, как можно вызвать нативную функцию, передав ей делегат:
 
 ```csharp
-[UnmanagedFunctionPointer(CallingConvention::FastCall)]
+[UnmanagedFunctionPointer(CallingConvention.FastCall)]
 delegate void MarshalableDelegate(int param);
 
 [DllImport(…)]
